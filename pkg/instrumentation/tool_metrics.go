@@ -82,9 +82,9 @@ func ToolHandler[I, O any](
 		// Record metrics
 		duration := time.Since(start).Seconds()
 		status := "success"
-		if err != nil {
+		if resultErr := effectiveToolError(result, err); resultErr != nil {
 			status = "error"
-			errorType := categorizeError(err)
+			errorType := categorizeError(resultErr)
 			metrics.toolErrorsTotal.WithLabelValues(toolName, errorType).Inc()
 		}
 
@@ -114,9 +114,9 @@ func ToolHandlerUntyped(
 
 		duration := time.Since(start).Seconds()
 		status := "success"
-		if err != nil {
+		if resultErr := effectiveToolError(result, err); resultErr != nil {
 			status = "error"
-			errorType := categorizeError(err)
+			errorType := categorizeError(resultErr)
 			metrics.toolErrorsTotal.WithLabelValues(toolName, errorType).Inc()
 		}
 
@@ -125,6 +125,38 @@ func ToolHandlerUntyped(
 
 		return result, err
 	}
+}
+
+// effectiveToolError returns the error that should be recorded for metrics
+// purposes. The MCP pattern used throughout obs-mcp (see resultutil.ToMCPResult)
+// encodes tool failures in the CallToolResult via IsError/SetError while
+// returning a nil Go error, so a plain `err != nil` check misses most tool
+// errors. This treats a result with IsError=true as an error too, preferring
+// the underlying error captured by SetError and falling back to the result's
+// text content when it is unavailable.
+func effectiveToolError(result *mcp.CallToolResult, err error) error {
+	if err != nil {
+		return err
+	}
+	if result == nil || !result.IsError {
+		return nil
+	}
+	if resultErr := result.GetError(); resultErr != nil {
+		return resultErr
+	}
+	return errors.New(resultErrorText(result))
+}
+
+// resultErrorText extracts a human-readable error message from a
+// CallToolResult's text content, used when no underlying error was captured
+// via SetError.
+func resultErrorText(result *mcp.CallToolResult) string {
+	for _, c := range result.Content {
+		if tc, ok := c.(*mcp.TextContent); ok && tc.Text != "" {
+			return tc.Text
+		}
+	}
+	return "tool call returned an error result"
 }
 
 // categorizeError categorizes errors into types for metrics labeling.

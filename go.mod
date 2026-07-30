@@ -35,6 +35,7 @@ require (
 	github.com/google/cel-go v0.30.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/tektoncd/pipeline v1.13.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0 // indirect
